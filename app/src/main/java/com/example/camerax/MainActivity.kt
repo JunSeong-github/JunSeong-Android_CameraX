@@ -59,6 +59,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
 
+    // count : 카메라 구분 번호 0 : 첫번째카메라, 1 : png파일과 같이있는 두번째 카메라, 2 : 동영상
+    var count : Int = 0
     var dialog01 : Dialog?=null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,18 +84,27 @@ class MainActivity : AppCompatActivity() {
         viewBinding.retakeButton.setVisibility(View.GONE)
         viewBinding.nextButton.setVisibility(View.GONE)
         viewBinding.cameraImageView.setVisibility(View.GONE)
+        viewBinding.videoCaptureButton.setVisibility(View.GONE)
 
         viewBinding.imageCaptureButton.setOnClickListener { takePhotoCapture() }
 
-//        viewBinding.saveButton.setOnClickListener { takePhoto() }
-//        viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
+        viewBinding.nextButton.setOnClickListener {
+
+            viewBinding.imageCaptureButton.setVisibility(View.GONE)
+            viewBinding.saveButton.setVisibility(View.GONE)
+            viewBinding.retakeButton.setVisibility(View.GONE)
+            viewBinding.nextButton.setVisibility(View.GONE)
+
+            DialogCss("with Creadit card")
+
+            viewBinding.cameraImageViewC.setVisibility(View.GONE)
+            viewBinding.cameraImageView.setVisibility(View.VISIBLE)
+            startCamera()
+        }
+
+        viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
-    }
-
-    private fun guideOne() {
-
-        viewBinding.imageCaptureButton.setVisibility(View.VISIBLE)
     }
 
     // REQUIRED_PERMISSIONS.all : REQUIRED_PERMISSIONS의 들어간 권한 전부를 뜻함 array타입
@@ -245,19 +256,45 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
 //                    var imageUri:Uri?=contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,contentValues)
                     // 찍은사진을 바로 화면에 imageviewC로 보여주기
+                    viewBinding.cameraImageViewC.setVisibility(View.VISIBLE)
                     viewBinding.cameraImageViewC.setImageURI(output.savedUri)
                     viewBinding.saveButton.setVisibility(View.VISIBLE)
                     Log.d(TAG, msg)
                     viewBinding.retakeButton.setVisibility(View.VISIBLE)
                     viewBinding.imageCaptureButton.setVisibility(View.GONE)
+
                     viewBinding.retakeButton.setOnClickListener{
-                        startCamera()
+                        viewBinding.cameraImageViewC.setVisibility(View.GONE)
                         viewBinding.retakeButton.setVisibility(View.GONE)
                         viewBinding.saveButton.setVisibility(View.GONE)
                         viewBinding.imageCaptureButton.setVisibility(View.VISIBLE)
                     }
 
+                    viewBinding.nextButton.setOnClickListener {
+
+                        count+=1
+                        viewBinding.imageCaptureButton.setVisibility(View.GONE)
+
+                        viewBinding.saveButton.setVisibility(View.GONE)
+                        viewBinding.retakeButton.setVisibility(View.GONE)
+                        viewBinding.nextButton.setVisibility(View.GONE)
+
+                        viewBinding.cameraImageViewC.setVisibility(View.GONE)
+                        viewBinding.cameraImageView.setVisibility(View.VISIBLE)
+                        if(count==1) {
+                            DialogCss("with Creadit card")
+                            startCamera()
+                        }
+                        else if(count==2) {
+                            DialogCss("for 5 seconds")
+                            startVideo()
+                        }
+                    }
+
                     viewBinding.saveButton.setOnClickListener {
+
+                        viewBinding.nextButton.setVisibility(View.VISIBLE)
+
                     val bitmap = (viewBinding.cameraImageViewC.drawable as BitmapDrawable).bitmap
 
                     val rootPath =
@@ -289,71 +326,60 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    //save버튼눌렀을시 이동
-    private fun takePhoto() {
-        // val imageCapture = imageCapture ?: return : imageCapture가 null일경우 함수를 종료하고
-        // 아니면 리턴
-        val imageCapture = imageCapture ?: return
 
-        // Locale.US : 미국일경우 일요일을 sun이라고 하기때문에 sun으로 표시
-        // currentTimeMillis : 현재시간을 구한다.
-        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
-            .format(System.currentTimeMillis())
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-            if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
-            }
-        }
-
-        // 사진을 지정할수 있는곳이다.
-        //contentResolver : MediaStore에 액세스하게 해주는것
-        // MediaStore.Images.Media.EXTERNAL_CONTENT_URI : MediaStore에 출력을 저장하기위해 경로입력
-        val outputOptions = ImageCapture.OutputFileOptions
-            .Builder(contentResolver,
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                contentValues)
-            .build()
-
-        //ImageCapture.OnImageSavedCallback : 이미지 캡쳐.이미지저장콜백으로 
-        // onError : 저장을 시도하는 동안 오류가 발생하면 호출
-        // onImageSaved : 이미지가 성공적으로 저장되면 호출
-        imageCapture.takePicture(
-            outputOptions,
-            ContextCompat.getMainExecutor(this),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(exc: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-
-                }
-
-                override fun
-                        onImageSaved(output: ImageCapture.OutputFileResults){
-                    val msg = "사진저장완료: ${output.savedUri}"
-                    viewBinding.cameraImageViewC.setVisibility(View.VISIBLE)
-                    viewBinding.cameraImageViewC.setImageURI(output.savedUri)
-                    viewBinding.saveButton.setVisibility(View.VISIBLE)
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, msg)
-                    viewBinding.nextButton.setVisibility(View.VISIBLE)
-                    viewBinding.nextButton.setOnClickListener {
-
-                        viewBinding.imageCaptureButton.setVisibility(View.GONE)
-                        viewBinding.saveButton.setVisibility(View.GONE)
-                        viewBinding.retakeButton.setVisibility(View.GONE)
-                        viewBinding.nextButton.setVisibility(View.GONE)
-
-                        DialogCss("with Creadit card")
-
-                        viewBinding.cameraImageViewC.setVisibility(View.GONE)
-                        viewBinding.cameraImageView.setVisibility(View.VISIBLE)
-                        startCamera()
-                    }
-                }
-            }
-        )
-    }
+//    //save버튼눌렀을시 이동
+//    private fun takePhoto() {
+//        // val imageCapture = imageCapture ?: return : imageCapture가 null일경우 함수를 종료하고
+//        // 아니면 리턴
+//        val imageCapture = imageCapture ?: return
+//
+//        // Locale.US : 미국일경우 일요일을 sun이라고 하기때문에 sun으로 표시
+//        // currentTimeMillis : 현재시간을 구한다.
+//        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+//            .format(System.currentTimeMillis())
+//        val contentValues = ContentValues().apply {
+//            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+//            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+//            if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+//                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
+//            }
+//        }
+//
+//        // 사진을 지정할수 있는곳이다.
+//        //contentResolver : MediaStore에 액세스하게 해주는것
+//        // MediaStore.Images.Media.EXTERNAL_CONTENT_URI : MediaStore에 출력을 저장하기위해 경로입력
+//        val outputOptions = ImageCapture.OutputFileOptions
+//            .Builder(contentResolver,
+//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//                contentValues)
+//            .build()
+//
+//        //ImageCapture.OnImageSavedCallback : 이미지 캡쳐.이미지저장콜백으로
+//        // onError : 저장을 시도하는 동안 오류가 발생하면 호출
+//        // onImageSaved : 이미지가 성공적으로 저장되면 호출
+//        imageCapture.takePicture(
+//            outputOptions,
+//            ContextCompat.getMainExecutor(this),
+//            object : ImageCapture.OnImageSavedCallback {
+//                override fun onError(exc: ImageCaptureException) {
+//                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+//
+//                }
+//
+//                override fun
+//                        onImageSaved(output: ImageCapture.OutputFileResults){
+//                    val msg = "사진저장완료: ${output.savedUri}"
+//
+//                    viewBinding.cameraImageViewC.setVisibility(View.VISIBLE)
+//                    viewBinding.cameraImageViewC.setImageURI(output.savedUri)
+//                    viewBinding.saveButton.setVisibility(View.VISIBLE)
+//                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+//                    Log.d(TAG, msg)
+//                    viewBinding.nextButton.setVisibility(View.VISIBLE)
+//                }
+//            }
+//        )
+//    }
 
     private fun DialogCss(msg : String) {
 
@@ -374,81 +400,152 @@ class MainActivity : AppCompatActivity() {
         dialog01.show()
 
         Okbutton.setOnClickListener {
-            guideOne()
+            if(count!=2) {
+                viewBinding.imageCaptureButton.setVisibility(View.VISIBLE)
+            }
+            else if(count==2){
+                viewBinding.videoCaptureButton.setVisibility(View.VISIBLE)
+            }
             dialog01.dismiss()
         }
     }
 
+    private fun startVideo() {
+        // ProcessCameraProvider의 수명주기를 바인딩하는것이다. camerax는 수명주기를 인식하므로 별도의 카메라를 열고닫는작업이필요하지않다.
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
-//    private fun captureVideo() {
-//        val videoCapture = this.videoCapture ?: return
-//
-//        //동영상을 찍는 중에는 버튼UI가 비활성화 된다. 이후에도 다시 나타나게 할예정
-//        viewBinding.videoCaptureButton.isEnabled = false
-//        val curRecording = recording
-//        //동영상을 찍는중일 경우 stop()을 이용해서 멈출수있다.
-//        if (curRecording != null) {
-//            // Stop the current recording session.
-//            curRecording.stop()
-//            recording = null
-//            return
-//        }
-//
-//        // 동영상 저장하는것
-//        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
-//            .format(System.currentTimeMillis())
-//        val contentValues = ContentValues().apply {
-//            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-//            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-//            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+        //addListener 계속 add하는것
+        cameraProviderFuture.addListener({
+            // Used to bind the lifecycle of cameras to the lifecycle owner
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            // Preview
+            // .build()는 preview상태지정, also는 it 객체로 접근하여 수신객체를 람다의 파라미터로 전달
+            // it=preview이다 -> it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
+            // 미리보기를 제공하도록 설정하는것 호출될위치 -> viewBinding : this(이 액티비티),
+            // viewFinder : androidx.camera.view.PreviewView이름
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
+                }
+// Quality.HIGHEST : 최고 비디오품질 설정
+            val recorder = Recorder.Builder()
+                .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+                .build()
+            videoCapture = VideoCapture.withOutput(recorder)
+
+            // 그냥 올리는거랑 똑같은데 촬영 시작후에 올라감
+//            viewBinding.viewFinder.overlay.add(viewBinding.cameraImageView)
+
+            // val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            // :기본 후면 카메라를 선택하는것
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+                // cameraProvider에 아무것도 바인딩되지않았는지 확인
+                // cameraProvider : 카레마 존재 또는 정보쿼리와 같은 카메라세트에 대한 기본 액세스제공
+                cameraProvider.unbindAll()
+
+                // cameraSelector 및 preview(미리보기개체)를 cameraProvider넣는다
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, videoCapture)
+//                cameraProvider
+//                    .bindToLifecycle(this, cameraSelector, preview, videoCapture)
+
+            } catch(exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+
+    private fun captureVideo() {
+        val videoCapture = this.videoCapture ?: return
+
+        //동영상을 찍는 중에는 버튼UI가 비활성화 된다. 이후에도 다시 나타나게 할예정
+        viewBinding.videoCaptureButton.isEnabled = false
+        val curRecording = recording
+
+        fun countDown(String time){
+            val conversionTime : Long =0
+
+
+        }
+
+val conversionTime : String = "5"
+        countDown(conversionTime)
+
+
+
+        //동영상을 찍는중일 경우 stop()을 이용해서 멈출수있다.
+        if (curRecording != null) {
+            // Stop the current recording session.
+            curRecording.stop()
+            recording = null
+            return
+        }
+
+        // 동영상 저장하는것
+        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+            .format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
 //                put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/CameraX-Video")
-//            }
-//        }
-//        // video출력을 mediastore에 저장하기위해서 경로 설정
-//        // video의 경우 사진과 달리 setContentValues(contentValues) 방식을 써야함
-//        val mediaStoreOutputOptions = MediaStoreOutputOptions
+//                put(MediaStore.Video.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
+                put(MediaStore.Video.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
+            }
+        }
+        // video출력을 mediastore에 저장하기위해서 경로 설정
+        // video의 경우 사진과 달리 setContentValues(contentValues) 방식을 써야함
+        val mediaStoreOutputOptions = MediaStoreOutputOptions
 //            .Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
-//            .setContentValues(contentValues)
-//            .build()
-//        // .prepareRecording(this, mediaStoreOutputOptions) : 저장할비디오를 준비한다
-//        recording = videoCapture.output
-//            .prepareRecording(this, mediaStoreOutputOptions)
-//            .apply {
-//                if (PermissionChecker.checkSelfPermission(this@MainActivity,
-//                        Manifest.permission.RECORD_AUDIO) ==
-//                    PermissionChecker.PERMISSION_GRANTED)
-//                {
-//                    //오디오 녹음하는 메소드
-//                    withAudioEnabled()
-//                }
-//            }
-//            .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
-//                when(recordEvent) {
-//                    is VideoRecordEvent.Start -> {
-//                        viewBinding.videoCaptureButton.apply {
-//                            text = getString(R.string.stop_capture)
-//                            isEnabled = true
-//                        }
-//                    }
-//                    is VideoRecordEvent.Finalize -> {
-//                        if (!recordEvent.hasError()) {
-//                            val msg = "Video capture succeeded: " +
-//                                    "${recordEvent.outputResults.outputUri}"
-//                            Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT)
-//                                .show()
-//                            Log.d(TAG, msg)
-//                        } else {
-//                            recording?.close()
-//                            recording = null
-//                            Log.e(TAG, "Video capture ends with error: " +
-//                                    "${recordEvent.error}")
-//                        }
-//                        viewBinding.videoCaptureButton.apply {
-//                            text = getString(R.string.start_capture)
-//                            isEnabled = true
-//                        }
-//                    }
-//                }
-//            }
-//    }
+            .Builder(contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+//        Uri.parse("file://" + Environment.getExternalStorageDirectory())
+            .setContentValues(contentValues)
+            .build()
+        // .prepareRecording(this, mediaStoreOutputOptions) : 저장할비디오를 준비한다
+        recording = videoCapture.output
+            .prepareRecording(this, mediaStoreOutputOptions)
+            .apply {
+                if (PermissionChecker.checkSelfPermission(this@MainActivity,
+                        Manifest.permission.RECORD_AUDIO) ==
+                    PermissionChecker.PERMISSION_GRANTED)
+                {
+                    //오디오 녹음하는 메소드
+                    withAudioEnabled()
+                }
+            }
+            .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
+                when(recordEvent) {
+                    is VideoRecordEvent.Start -> {
+                        viewBinding.videoCaptureButton.apply {
+                            text = getString(R.string.stop_capture)
+                            isEnabled = true
+                        }
+                    }
+                    is VideoRecordEvent.Finalize -> {
+                        if (!recordEvent.hasError()) {
+                            val msg = "Video capture succeeded: " +
+                                    "${recordEvent.outputResults.outputUri}"
+                            Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT)
+                                .show()
+                            Log.d(TAG, msg)
+                        } else {
+                            recording?.close()
+                            recording = null
+                            Log.e(TAG, "Video capture ends with error: " +
+                                    "${recordEvent.error}")
+                        }
+                        viewBinding.videoCaptureButton.apply {
+                            text = getString(R.string.start_capture)
+                            isEnabled = true
+                        }
+                    }
+                }
+            }
+    }
 }
